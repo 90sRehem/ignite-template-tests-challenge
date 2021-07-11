@@ -1,61 +1,69 @@
-import { IncorrectEmailOrPasswordError } from "./IncorrectEmailOrPasswordError";
 import { InMemoryUsersRepository } from "../../repositories/in-memory/InMemoryUsersRepository";
-import { CreateUserUseCase } from "../createUser/CreateUserUseCase";
+import { IncorrectEmailOrPasswordError } from "./IncorrectEmailOrPasswordError";
+
 import { AuthenticateUserUseCase } from "./AuthenticateUserUseCase";
+import { CreateUserUseCase } from "../createUser/CreateUserUseCase";
 
 let authenticateUserUseCase: AuthenticateUserUseCase;
-let usersRepositoryInMemory: InMemoryUsersRepository;
 let createUserUseCase: CreateUserUseCase;
-describe("Autenticar Usuário", () => {
+let inMemoryUsersRepository: InMemoryUsersRepository;
+
+describe("Authenticate User", () => {
   beforeEach(() => {
-    usersRepositoryInMemory = new InMemoryUsersRepository();
+    inMemoryUsersRepository = new InMemoryUsersRepository();
     authenticateUserUseCase = new AuthenticateUserUseCase(
-      usersRepositoryInMemory,
+      inMemoryUsersRepository
     );
-    createUserUseCase = new CreateUserUseCase(
-      usersRepositoryInMemory,
-    );
+    createUserUseCase = new CreateUserUseCase(inMemoryUsersRepository);
   });
-  it("Should be able to autenticate a user", async () => {
-    const user = {
-      name: "João das Coves",
-      email: "joaodascoves@email.com",
-      password: "123senha",
+
+  it("should be able to authenticate an existing user", async () => {
+    const userData = {
+      name: "Test Name",
+      email: "Test Email",
+      password: "Test Password",
     };
-    await createUserUseCase.execute(user);
 
-    expect(async () => {
-      await authenticateUserUseCase.execute({
-        email: "joaodascoves@email.com",
-        password: "1233senha",
-      });
+    await createUserUseCase.execute(userData);
+
+    const { user, token } = await authenticateUserUseCase.execute({
+      email: userData.email,
+      password: userData.password,
     });
+
+    expect(user).toHaveProperty("id");
+    expect(token).not.toBeNull();
   });
 
-  it("Shouldn't be possible to authenticate a non-existent user", async () => {
-    expect(async () => {
-      await authenticateUserUseCase.execute({
-        email: "joaodascoves@email.com",
-        password: "123senha",
-      });
-    }).rejects.toBeInstanceOf(IncorrectEmailOrPasswordError);
+  it("should not be able to authenticate an no-existing user", async () => {
+    const userData = {
+      name: "Test Name",
+      email: "Test Email",
+      password: "Test Password",
+    };
+
+    await expect(
+      authenticateUserUseCase.execute({
+        email: userData.email,
+        password: userData.password,
+      })
+    ).rejects.toEqual(new IncorrectEmailOrPasswordError());
   });
 
-  it("Shouldn't be possible to authenticate a user with the wrong password", async () => {
-    expect(async () => {
-      const user = {
-        name: "João das Coves",
-        email: "joaodascoves@email.com",
-        password: "123senha",
-        phone: "999999999",
-      };
+  it("should not be able to authenticate a user with wrong password", async () => {
+    const userData = {
+      name: "Test Name",
+      email: "Test Email",
+      password: "Test Password",
+    };
 
-      await createUserUseCase.execute(user);
+    await createUserUseCase.execute(userData);
 
-      await authenticateUserUseCase.execute({
-        email: user.email,
-        password: "1234senha",
-      });
-    }).rejects.toBeInstanceOf(IncorrectEmailOrPasswordError);
+    await expect(
+      authenticateUserUseCase.execute({
+        email: userData.email,
+        password: "wrong password",
+      })
+    ).rejects.toEqual(new IncorrectEmailOrPasswordError());
   });
 });

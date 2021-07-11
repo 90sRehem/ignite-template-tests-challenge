@@ -1,45 +1,43 @@
 import { InMemoryUsersRepository } from "../../repositories/in-memory/InMemoryUsersRepository";
-import { CreateUserUseCase } from "../createUser/CreateUserUseCase";
 import { ShowUserProfileUseCase } from "./ShowUserProfileUseCase";
 
-import {ShowUserProfileError} from './ShowUserProfileError'
+import { ShowUserProfileError } from "./ShowUserProfileError";
+import { CreateUserUseCase } from "../createUser/CreateUserUseCase";
 
-
-let usersRepositoryInMemory: InMemoryUsersRepository;
 let createUserUseCase: CreateUserUseCase;
 let showUserProfileUseCase: ShowUserProfileUseCase;
+let inMemoryUsersRepository: InMemoryUsersRepository;
 
-describe("Should be able to show user profile", () => {
+describe("User Profile", () => {
   beforeEach(() => {
-    usersRepositoryInMemory = new InMemoryUsersRepository();
-    createUserUseCase = new CreateUserUseCase(
-      usersRepositoryInMemory,
-    );
+    inMemoryUsersRepository = new InMemoryUsersRepository();
+    createUserUseCase = new CreateUserUseCase(inMemoryUsersRepository);
     showUserProfileUseCase = new ShowUserProfileUseCase(
-      usersRepositoryInMemory,
+      inMemoryUsersRepository
     );
   });
-  it("Should be possible to show a user's profile", async () => {
-    const userDTO = {
-      name: "João das Coves",
-      email: "joaodascoves@email.com",
-      password: "123senha",
-    };
-    const user = await createUserUseCase.execute(userDTO);
 
-    const findUser = await showUserProfileUseCase.execute(user.id || "test")
-    expect(findUser.name).toBe("João das Coves");
+  it("should be able to get user profile", async () => {
+    const user = {
+      name: "Test Name",
+      email: "Test Email",
+      password: "Test Password",
+    };
+
+    await createUserUseCase.execute(user);
+
+    const userCreated = await inMemoryUsersRepository.findByEmail(user.email);
+
+    const userProfile = await showUserProfileUseCase.execute(userCreated.id);
+
+    expect(userProfile).toHaveProperty("id");
+    expect(userProfile).toHaveProperty("name");
+    expect(userProfile).toHaveProperty("email");
   });
 
-  it("Shouldn't be able to show the profile of a non-existent user", async () => {
-    expect(async () => {
-      const userDTO = {
-        name: "João das Coves",
-        email: "joaodascoves@email.com",
-        password: "123senha",
-      };
-      const user = await createUserUseCase.execute(userDTO);
-      await showUserProfileUseCase.execute("fakeid");
-    }).rejects.toBeInstanceOf(ShowUserProfileError);
+  it("should not be able to get a profile from a non-existing user", async () => {
+    await expect(
+      showUserProfileUseCase.execute("userCreated.id")
+    ).rejects.toEqual(new ShowUserProfileError());
   });
 });
